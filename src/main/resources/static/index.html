@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeLink — Emergency Blood Donor Network</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="logo">🩸 LifeLink <span>Emergency Blood Network</span></div>
+      <nav class="nav-links" id="navLinks">
+        <button type="button" id="btnLogin">Login</button>
+        <button type="button" id="btnRegister">Register</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero container">
+      <h1>Find verified blood donors near you — fast</h1>
+      <p>Register as a donor with certificates and location, or search by blood group and dynamic radius when you need emergency blood (18+ verified donors only).</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="heroRegister">Get Started</button>
+        <a href="#how-it-works" class="btn btn-outline">Learn how it works</a>
+      </div>
+    </section>
+
+    <section class="container" id="roles">
+      <div class="card-grid">
+        <article class="role-card">
+          <h3>👤 User</h3>
+          <p>Register as a user to both donate blood and search for donors. Submit your profile with documents to become a verified donor, or search for nearby donors when you need blood.</p>
+          <button class="btn btn-primary" id="registerUserBtn">Register as User</button>
+        </article>
+              </div>
+    </section>
+  </main>
+
+
+
+<!-- ADD HERE -->
+<section class="container how-it-works" id="how-it-works">
+  <h2>How LifeLink Works</h2>
+
+  <div class="steps">
+    <div class="step">
+      <h3>1. Register</h3>
+      <p>Create an account and complete your profile.</p>
+    </div>
+
+    <div class="step">
+      <h3>2. Upload Documents</h3>
+      <p>Upload blood group certificate and identity proof.</p>
+    </div>
+
+    <div class="step">
+      <h3>3. Get Verified</h3>
+      <p>Admin verifies your donor profile.</p>
+    </div>
+
+    <div class="step">
+      <h3>4. Search Donors</h3>
+      <p>Find donors by blood group and location.</p>
+    </div>
+
+    <div class="step">
+      <h3>5. Save Lives</h3>
+      <p>Connect with donors during emergencies.</p>
+    </div>
+  </div>
+</section>
+
+
+  <footer>LifeLink Blood Donor App</footer>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modalTitle">Login</h3>
+      <div id="modalAlert" class="alert alert-error hidden"></div>
+      <form id="authForm">
+        <div class="form-group" id="emailGroup">
+          <label for="authEmail">Email</label>
+          <input type="email" id="authEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" required minlength="6">
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary btn-block" id="authSubmit">Login</button>
+          <button type="button" class="btn btn-outline" id="modalClose">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

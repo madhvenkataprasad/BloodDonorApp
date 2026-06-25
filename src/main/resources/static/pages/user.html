@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard — LifeLink</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" style="color:#fff">🩸 LifeLink Dashboard</a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <button type="button" id="logoutBtn">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-section container">
+    <div id="pageAlert" class="alert hidden"></div>
+
+    <div class="panel" style="text-align: center; padding: 3rem 2rem;">
+      <h1>Welcome to LifeLink</h1>
+      <p class="hint" style="font-size: 1.1rem; margin-bottom: 2rem;">
+        Choose an action below: Donate blood to help others, or find donors when you need blood.
+      </p>
+      
+      <div style="display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 280px; max-width: 400px;">
+          <div class="panel" style="padding: 2rem;">
+            <h2 style="color: #e74c3c;">🩸 Donate Blood</h2>
+            <p class="hint" style="margin-bottom: 1.5rem;">
+              Register as a donor by providing your details and uploading required documents.
+              Your profile will be verified by admin before appearing in search results.
+            </p>
+            <button type="button" class="btn btn-primary btn-block" id="donateBtn">
+              Go to Donate Blood
+            </button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 280px; max-width: 400px;">
+          <div class="panel" style="padding: 2rem;">
+            <h2 style="color: #3498db;">🏥 Receive Blood</h2>
+            <p class="hint" style="margin-bottom: 1.5rem;">
+              Search for verified blood donors near you by blood group and location.
+              Contact donors directly when you need emergency blood.
+            </p>
+            <button type="button" class="btn btn-primary btn-block" id="receiveBtn">
+              Go to Receive Blood
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById('logoutBtn').onclick = async () => {
+      await Api.logout();
+      location.href = '/';
+    };
+
+    document.getElementById('donateBtn').onclick = () => {
+      location.href = '/pages/donor.html';
+    };
+
+    document.getElementById('receiveBtn').onclick = () => {
+      location.href = '/pages/receiver.html';
+    };
+
+    // Check authentication
+    (async () => {
+      try {
+        const me = await Api.me();
+        if (!me.authenticated || me.role !== 'USER') {
+          showAlert('pageAlert', 'Access denied. User role required.');
+          setTimeout(() => location.href = '/', 2000);
+        }
+      } catch (err) {
+        showAlert('pageAlert', err.message);
+        setTimeout(() => location.href = '/', 2000);
+      }
+    })();
+  </script>
+</body>
+</html>

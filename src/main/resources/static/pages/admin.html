@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — LifeLink</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" style="color:#fff">✅ Admin Verification</a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <button type="button" id="logoutBtn">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-section container">
+    <div id="pageAlert" class="alert hidden"></div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="panel">
+      <h2>Donor verification</h2>
+      <div style="margin-bottom:1rem">
+        <label>Filter: </label>
+        <select id="statusFilter">
+          <option value="">All</option>
+          <option value="PENDING" selected>Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+        <button class="btn btn-outline" id="refreshDonors" style="margin-left:0.5rem">Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Blood</th>
+              <th>Age</th>
+              <th>Status</th>
+              <th>Phone</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="donorTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="docPanel">
+      <h2>Documents for <span id="selectedDonorName"></span></h2>
+      <div id="docTable"></div>
+      <div class="form-grid" style="margin-top:1rem">
+        <div class="form-group full">
+          <label>Admin notes (for donor approval)</label>
+          <textarea id="adminNotes" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <button class="btn btn-primary" id="approveDonor">Approve donor</button>
+          <button class="btn btn-outline" id="rejectDonor" style="margin-left:0.5rem">Reject donor</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let selectedDonorId = null;
+
+    document.getElementById('logoutBtn').onclick = async () => { await Api.logout(); location.href = '/'; };
+
+    async function init() {
+      const me = await requireRole(['ADMIN']);
+      if (!me) return;
+      loadStats();
+      loadDonors();
+    }
+
+    async function loadStats() {
+      const s = await Api.adminStats();
+      document.getElementById('statsRow').innerHTML = `
+        <div class="stat-box"><strong>${s.totalUsers}</strong>Users</div>
+        <div class="stat-box"><strong>${s.totalDonors}</strong>Donors</div>
+        <div class="stat-box"><strong>${s.totalReceivers}</strong>Receivers</div>
+        <div class="stat-box"><strong>${s.pendingDonors}</strong>Pending donors</div>
+        <div class="stat-box"><strong>${s.pendingDocuments}</strong>Pending docs</div>
+      `;
+    }
+
+    async function loadDonors() {
+      const status = document.getElementById('statusFilter').value;
+      const donors = await Api.adminDonors(status || undefined);
+      const tbody = document.getElementById('donorTable');
+      tbody.innerHTML = donors.map(d => `
+        <tr>
+          <td>${d.fullName}</td>
+          <td>${d.bloodGroup}</td>
+          <td>${d.age}</td>
+          <td><span class="badge badge-${d.verificationStatus.toLowerCase()}">${d.verificationStatus}</span></td>
+          <td>${d.phone}</td>
+          <td><button class="btn btn-outline" data-id="${d.donorId}" data-name="${d.fullName}">Review docs (${d.documentCount})</button></td>
+        </tr>
+      `).join('');
+      tbody.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => openDocs(parseInt(btn.dataset.id, 10), btn.dataset.name);
+      });
+    }
+
+    async function openDocs(donorId, name) {
+      selectedDonorId = donorId;
+      document.getElementById('selectedDonorName').textContent = name;
+      document.getElementById('docPanel').classList.remove('hidden');
+      const docs = await Api.adminDonorDocs(donorId);
+      document.getElementById('docTable').innerHTML = docs.length ? `
+        <table><thead><tr><th>Type</th><th>File</th><th>Status</th><th>View</th><th>Action</th></tr></thead>
+        <tbody>${docs.map(d => `
+          <tr>
+            <td>${d.documentType}</td>
+            <td>${d.originalFileName}</td>
+            <td><span class="badge badge-${d.status.toLowerCase()}">${d.status}</span></td>
+            <td><a href="${Api.documentFileUrl(d.id)}" target="_blank" rel="noopener">Open</a></td>
+            <td>
+              <button class="btn btn-primary btn-sm" data-doc="${d.id}" data-action="APPROVED">Approve</button>
+              <button class="btn btn-outline btn-sm" data-doc="${d.id}" data-action="REJECTED">Reject</button>
+            </td>
+          </tr>
+        `).join('')}</tbody></table>
+      ` : '<p class="hint">No documents uploaded.</p>';
+
+      document.getElementById('docTable').querySelectorAll('button[data-doc]').forEach(btn => {
+        btn.onclick = async () => {
+          const reason = btn.dataset.action === 'REJECTED' ? prompt('Rejection reason:') : null;
+          try {
+            await Api.verifyDocument(parseInt(btn.dataset.doc, 10), {
+              status: btn.dataset.action,
+              rejectionReason: reason || null
+            });
+            showAlert('pageAlert', 'Document updated.', 'success');
+            openDocs(donorId, name);
+            loadDonors();
+            loadStats();
+          } catch (e) { showAlert('pageAlert', e.message); }
+        };
+      });
+    }
+
+    document.getElementById('refreshDonors').onclick = () => { loadDonors(); loadStats(); };
+    document.getElementById('statusFilter').onchange = loadDonors;
+
+    document.getElementById('approveDonor').onclick = async () => {
+      if (!selectedDonorId) return;
+      try {
+        await Api.verifyDonor(selectedDonorId, {
+          status: 'APPROVED',
+          adminNotes: document.getElementById('adminNotes').value
+        });
+        showAlert('pageAlert', 'Donor approved for search.', 'success');
+        loadDonors(); loadStats();
+      } catch (e) { showAlert('pageAlert', e.message); }
+    };
+
+    document.getElementById('rejectDonor').onclick = async () => {
+      if (!selectedDonorId) return;
+      try {
+        await Api.verifyDonor(selectedDonorId, {
+          status: 'REJECTED',
+          adminNotes: document.getElementById('adminNotes').value
+        });
+        showAlert('pageAlert', 'Donor rejected.', 'info');
+        loadDonors(); loadStats();
+      } catch (e) { showAlert('pageAlert', e.message); }
+    };
+
+    init();
+  </script>
+</body>
+</html>

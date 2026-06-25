@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Donor Dashboard — LifeLink</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" style="color:#fff">🩸 Donor Dashboard</a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <button type="button" id="logoutBtn">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-section container">
+    <div id="pageAlert" class="alert hidden"></div>
+
+    <div class="panel">
+      <h2>Your profile</h2>
+      <p class="hint">Must be 18+. Upload government ID and either blood donation certificate or recent blood test report. Admin must verify before you appear in emergency search.</p>
+      <form id="profileForm" class="form-grid">
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" id="fullName" required maxlength="100">
+        </div>
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="age" min="18" max="70" required>
+        </div>
+        <div class="form-group">
+          <label>Blood group</label>
+          <select id="bloodGroup" required></select>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="phone" required>
+        </div>
+        <div class="form-group full">
+          <label>Diseases / health conditions (or "None")</label>
+          <textarea id="diseases" rows="2" placeholder="None"></textarea>
+        </div>
+<div class="form-group full">
+    <label>Location</label>
+
+    <input
+        type="text"
+        id="address"
+        required
+        maxlength="300"
+        placeholder="Type hospital, area, city...">
+
+    <div id="suggestions"></div>
+</div>
+
+<div class="form-group">
+    <label>Latitude</label>
+    <input type="number" id="latitude" step="any" required>
+</div>
+
+<div class="form-group">
+    <label>Longitude</label>
+    <input type="number" id="longitude" step="any" required>
+</div>
+ <div class="form-group">
+          <label>Available to donate?</label>
+          <select id="available">
+            <option value="true">Yes</option>
+            <option value="false">No (temporarily)</option>
+          </select>
+        </div>
+
+<div class="form-group full">
+    <button type="button" class="btn btn-outline" id="useLocation">
+        Use GPS Location
+    </button>
+</div>
+        <div class="form-group full">
+          <button type="submit" class="btn btn-primary">Save profile</button>
+        </div>
+      </form>
+      <p id="verificationStatus" class="hint" style="margin-top:1rem"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Upload proofs</h2>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Government ID (Aadhaar / PAN / Driving license)</label>
+          <input type="file" id="govtId" accept=".jpg,.jpeg,.png,.pdf">
+        </div>
+        <div class="form-group full">
+          <label>Blood donation certificate (if you have one)</label>
+          <input type="file" id="bloodCert" accept=".jpg,.jpeg,.png,.pdf">
+        </div>
+        <div class="form-group full">
+          <label>Recent blood test report (required if no certificate)</label>
+          <input type="file" id="bloodTest" accept=".jpg,.jpeg,.png,.pdf">
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" id="uploadDocs" style="margin-top:1rem">Upload selected files</button>
+      <ul id="docList" style="margin-top:1rem;list-style:none"></ul>
+    </div>
+  </section>
+
+  <script src="/js/api.js"></script>
+
+<script>
+document.getElementById('logoutBtn').onclick = async () => {
+    await Api.logout();
+    location.href = '/';
+};
+
+bloodGroupOptions(document.getElementById('bloodGroup'));
+
+document.getElementById('useLocation').onclick = () => {
+
+    if (!navigator.geolocation) {
+        showAlert(
+            'pageAlert',
+            'Geolocation is not supported by your browser'
+        );
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+
+            document.getElementById('latitude').value =
+                position.coords.latitude;
+
+            document.getElementById('longitude').value =
+                position.coords.longitude;
+
+            showAlert(
+                'pageAlert',
+                'GPS location captured successfully',
+                'success'
+            );
+        },
+        function() {
+            showAlert(
+                'pageAlert',
+                'Unable to get your location'
+            );
+        }
+    );
+};
+
+
+function renderDocs(docs) {
+    const ul = document.getElementById('docList');
+
+    if (!docs || docs.length === 0) {
+        ul.innerHTML = '<li class="hint">No documents uploaded yet.</li>';
+        return;
+    }
+
+    ul.innerHTML = docs.map(d => `
+        <li style="margin:0.5rem 0">
+            ${d.documentType} :
+            ${d.originalFileName}
+
+            <span class="badge badge-${d.status.toLowerCase()}">
+                ${d.status}
+            </span>
+
+            <a href="${d.fileUrl}"
+               target="_blank"
+               style="margin-left:10px">
+               View File
+            </a>
+        </li>
+    `).join('');
+}
+
+async function loadProfile() {
+
+    const me = await requireRole(['USER', 'ADMIN']);
+
+    if (!me) return;
+
+    try {
+
+        const p = await Api.getDonorProfile();
+
+        document.getElementById('fullName').value = p.fullName || '';
+        document.getElementById('age').value = p.age || '';
+        document.getElementById('bloodGroup').value = p.bloodGroup || '';
+        document.getElementById('phone').value = p.phone || '';
+        document.getElementById('diseases').value = p.diseases || '';
+        document.getElementById('address').value = p.address || '';
+        document.getElementById('latitude').value = p.latitude || '';
+        document.getElementById('longitude').value = p.longitude || '';
+        document.getElementById('available').value = String(p.available);
+
+        document.getElementById('verificationStatus').textContent =
+            'Verification: ' + p.verificationStatus;
+
+        renderDocs(p.documents);
+
+    } catch (err) {
+
+        console.error(err);
+
+        showAlert(
+            'pageAlert',
+            'No donor profile found. Please save your profile.'
+        );
+    }
+}
+
+document.getElementById('profileForm').onsubmit = async (e) => {
+
+    e.preventDefault();
+
+    try {
+
+        const body = {
+            fullName: document.getElementById('fullName').value,
+            age: parseInt(document.getElementById('age').value),
+            bloodGroup: document.getElementById('bloodGroup').value,
+            diseases: document.getElementById('diseases').value,
+            phone: document.getElementById('phone').value,
+            address: document.getElementById('address').value,
+            latitude: parseFloat(document.getElementById('latitude').value),
+            longitude: parseFloat(document.getElementById('longitude').value),
+            available:
+                document.getElementById('available').value === 'true'
+        };
+
+        const p = await Api.saveDonorProfile(body);
+
+        renderDocs(p.documents);
+
+        showAlert(
+            'pageAlert',
+            'Profile saved successfully',
+            'success'
+        );
+
+    } catch (err) {
+
+        showAlert('pageAlert', err.message);
+    }
+};
+
+document.getElementById('uploadDocs').onclick = async () => {
+
+    const uploads = [
+        { el: 'govtId', type: 'GOVT_ID' },
+        { el: 'bloodCert', type: 'BLOOD_CERTIFICATE' },
+        { el: 'bloodTest', type: 'BLOOD_TEST_REPORT' }
+    ];
+
+    try {
+
+        let count = 0;
+
+        for (const u of uploads) {
+
+            const file =
+                document.getElementById(u.el).files[0];
+
+            if (file) {
+
+                await Api.uploadDocument(
+                    u.type,
+                    file
+                );
+
+                count++;
+            }
+        }
+
+        if (count === 0) {
+            showAlert(
+                'pageAlert',
+                'Select at least one file'
+            );
+            return;
+        }
+
+        showAlert(
+            'pageAlert',
+            count + ' file(s) uploaded',
+            'success'
+        );
+
+        loadProfile();
+
+    } catch (err) {
+
+        showAlert('pageAlert', err.message);
+    }
+};
+
+loadProfile();
+
+</script>
+
+</body>
+</html>
